@@ -181,7 +181,7 @@ ExecuTorchProcessor::Instance::Instance(InferenceConfig& inference_config)
 
 void ExecuTorchProcessor::Instance::prepare() {
     // Reset input buffers to a known (zero) state between sessions.
-    for (auto& input : m_input_data) { std::ranges::fill(input, 0.f); }
+    for (auto& input : m_input_data) { std::fill(input.begin(), input.end(), 0.f); }
 }
 
 void ExecuTorchProcessor::Instance::process(std::vector<BufferF>& input,
