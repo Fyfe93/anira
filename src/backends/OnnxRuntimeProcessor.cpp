@@ -11,6 +11,7 @@
 
 #include <cassert>
 #include <cstddef>
+#include <cstring>
 #include <memory>
 #include <stdexcept>
 #include <string>
@@ -200,11 +201,12 @@ void OnnxRuntimeProcessor::Instance::process(std::vector<BufferF>& input,
                                    m_output_names.size());
     } catch (Ort::Exception& e) { LOG_ERROR << e.what() << '\n'; }
 
+    // One block copy per tensor, as in ExecuTorchProcessor: a per-float loop costs milliseconds for
+    // models with megabytes of output (e.g. state tensors fed back for streaming).
     for (size_t i = 0; i < m_outputs.size(); i++) {
-        const auto output_read_ptr = m_outputs[i].GetTensorMutableData<float>();
-        for (size_t j = 0; j < m_inference_config.get_tensor_output_size()[i]; j++) {
-            output[i].get_memory_block()[j] = output_read_ptr[j];
-        }
+        std::memcpy(output[i].get_memory_block().data(),
+                    m_outputs[i].GetTensorMutableData<float>(),
+                    m_inference_config.get_tensor_output_size()[i] * sizeof(float));
     }
 }
 
