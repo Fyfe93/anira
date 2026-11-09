@@ -37,13 +37,26 @@ void HighPriorityThread::start() {
         pthread_setattr_default_np(&thread_attr);
 #endif
 
+#if defined(__APPLE__)
+        // A thread's QoS class can only be set by the thread itself (pthread_set_qos_class_self_np),
+        // so the new thread raises its own before running. Raised from here it would be the caller's,
+        // and the worker would keep the caller's QoS: from a low-QoS caller it runs on the efficiency
+        // cores and is preempted, taking about twice as long per inference.
+        m_thread = std::thread([this] {
+            elevate_priority(pthread_self());
+            run();
+        });
+#else
         m_thread = std::thread(&HighPriorityThread::run, this);
+#endif
 
 #if defined(__linux__) && !defined(__ANDROID__)
         pthread_attr_destroy(&thread_attr);
 #endif
 
+#if !defined(__APPLE__)
         elevate_priority(m_thread.native_handle());
+#endif
         m_is_running = true;
     }
 }
